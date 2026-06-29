@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>LiveTrack Fafa</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+body { margin:0; }
+#map { height:100vh; width:100%; }
+
+/* TOP BAR */
+#topBar{
+  position:absolute;
+  top:10px;
+  left:10px;
+  z-index:1000;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-family:sans-serif;
+}
+
+#btnImport{
+  background:#007bff;
+  color:white;
+  border:none;
+  padding:6px 12px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+#fileName{
+  font-size:13px;
+  background:rgba(255,255,255,0.7);
+  padding:6px 10px;
+  border-radius:6px;
+  max-width:250px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+#fileInput{ display:none; }
+
+#kmValue{ color:red; }
+
+/* HUD */
+#hud{
+  position:absolute;
+  right:10px;
+  top:10px;
+  z-index:1000;
+  font-family:sans-serif;
+  font-size:14px;
+  font-weight:bold;
+  background:rgba(255,255,255,0.5);
+  backdrop-filter:blur(3px);
+  color:blue;
+  padding:10px 14px;
+  border-radius:10px;
+  display:grid;
+  grid-template-columns:110px 70px 60px;
+  gap:6px 10px;
+  align-items:center;
+}
+
+.hudLabel{ font-size:12px; opacity:0.85; }
+.hudValue{ font-family:monospace; text-align:right; }
+.hudUnit{ font-size:12px; opacity:0.85; }
+
+/* TOGGLE */
+#mapToggle{
+  position:absolute;
+  right:10px;
+  top:145px;
+  z-index:1000;
+  width:60px;
+  height:60px;
+
+  background:rgba(0,0,0,0.25);
+  backdrop-filter:blur(3px);
+
+  border-radius:10px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  cursor:pointer;
+  box-shadow:0 2px 6px rgba(0,0,0,0.25);
+}
+
+#mapToggle img{ width:55px; height:55px; }
+
+/* SCALE */
+#scaleContainer {
+  position: fixed;
+  bottom: 20px;
+  left: 10px;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+}
+
+#customScale {
+  width: 120px;
+  height: 8px;
+  display: flex;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.6);
+  background: rgba(255,255,255,0.25);
+  margin-right: 8px;
+}
+
+#customScale div { flex:1; }
+
+#customScale .black { background: rgba(0,0,0,0.85); }
+#customScale .white { background: rgba(255,255,255,0.95); }
+
+#scaleValue{
+  background: rgba(255,255,255,0.5);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.btn-blink {
+  animation: blinkBtn 1s infinite;
+}
+
+@keyframes blinkBtn {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="topBar">
+  <button id="btnImport">Charger l'étape du jour</button>
+  <span id="fileName">Aucun fichier</span>
+</div>
+
+<input type="file" id="fileInput" accept=".gpx"/>
+
+<div id="map"></div>
+
+<div id="hud">
+  <div class="hudLabel">Parcourus</div>
+  <div class="hudValue" id="kmValue">0.00</div>
+  <div class="hudUnit">km</div>
+
+  <div class="hudLabel">Parcours</div>
+  <div class="hudValue" id="gpxValue">0.00</div>
+  <div class="hudUnit">km</div>
+
+  <div class="hudLabel">Vitesse</div>
+  <div class="hudValue" id="speedValue">0.00</div>
+  <div class="hudUnit">km/h</div>
+
+  <div class="hudLabel">FC</div>
+  <div class="hudValue" id="fcValue">--</div>
+  <div class="hudUnit">bpm</div>
+</div>
+
+<div id="mapToggle">
+  <img id="mapToggleIcon" src="https://fabriziodelarusta.github.io/icons/sat.png">
+</div>
+
+<div id="scaleContainer">
+  <div id="customScale">
+    <div class="black"></div>
+    <div class="white"></div>
+  </div>
+  <div id="scaleValue">0 m</div>
+</div>
+
+<script>
+
+/* ================= MAP ================= */
+const map = L.map('map',{zoomControl:false})
+.setView([50.607,3.389],13);
+
+L.control.zoom({position:'bottomright'}).addTo(map);
+
+/* SCALE */
+const scaleValue = document.getElementById("scaleValue");
+
+function getNiceDistance(m) {
+  const steps = [100,200,500,1000,2000,5000,10000,20000,50000,100000];
+  for (let s of steps) if (m <= s) return s;
+  return steps.at(-1);
+}
+
+function updateScale() {
+  const c = map.getCenter();
+  const p1 = map.latLngToContainerPoint(c);
+  const p2 = L.point(p1.x + 100, p1.y);
+  const ll2 = map.containerPointToLatLng(p2);
+
+  const meters = map.distance(c, ll2);
+  if (!meters) return;
+
+  const nice = getNiceDistance(meters);
+  const px = (nice / meters) * 100;
+
+  document.getElementById("customScale").style.width = px + "px";
+  scaleValue.innerText = nice >= 1000 ? (nice/1000)+" km" : nice+" m";
+}
+
+map.on("zoom move", updateScale);
+updateScale();
+
+/* BASE LAYERS */
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+const esri = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Tiles © Esri' }
+);
+let current = osm.addTo(map);
+
+/* TOGGLE */
+document.getElementById("mapToggle").onclick = () => {
+
+  map.removeLayer(current);
+
+  if (current === osm) {
+
+    current = esri;
+
+    document.getElementById("mapToggleIcon").src =
+      "https://fabriziodelarusta.github.io/icons/OSM.png";
+
+  } else {
+
+    current = osm;
+
+    document.getElementById("mapToggleIcon").src =
+      "https://fabriziodelarusta.github.io/icons/sat.png";
+  }
+
+  map.addLayer(current);
+};
+/* PANES */
+map.createPane("gpxPane");
+map.getPane("gpxPane").style.zIndex = 350;
+
+map.createPane("livePane");
+map.getPane("livePane").style.zIndex = 450;
+
+/* ================= FIREBASE (UPDATED STRUCTURE) ================= */
+firebase.initializeApp({
+  databaseURL:"https://live-track-799f8-default-rtdb.europe-west1.firebasedatabase.app"
+});
+
+const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+
+const trackerName =
+  new URLSearchParams(location.search).get("tracker")
+  || "Fabrizio";
+
+const basePath = `tracking/${today}/${trackerName}`;
+
+const ref = firebase.database().ref(basePath + "/history");
+const currentRef = firebase.database().ref(basePath + "/current");
+
+/* ================= BLINK GPX BUTTON ================= */
+let gpxLoaded = false;
+
+const btnImport = document.getElementById("btnImport");
+
+btnImport.classList.add("btn-blink");
+
+function updateBlink() {
+  if (!gpxLoaded) {
+    btnImport.classList.add("btn-blink");
+  } else {
+    btnImport.classList.remove("btn-blink");
+  }
+}
+
+updateBlink();
+
+/* ================= LIVE ================= */
+let liveLine = L.polyline([], {
+  color:"red",
+  weight:4,
+  pane:"livePane"
+}).addTo(map);
+
+function dist(ll){
+  let d=0;
+  for(let i=1;i<ll.length;i++){
+    d += map.distance(ll[i-1], ll[i]);
+  }
+  return d/1000;
+}
+
+function computeSpeedKmh(points){
+  if(points.length < 2) return 0;
+
+  const first = new Date(points[0].time);
+  const last = new Date(points[points.length - 1].time);
+
+  const hours = (last - first) / 3600000;
+  if(hours <= 0) return 0;
+
+  const distanceKm = dist(points.map(p => [p.lat, p.lon]));
+
+  return distanceKm / hours;
+}
+
+/* HISTORY (UNCHANGED LOGIC, ONLY PATH CHANGED) */
+function updateLive(){
+  ref.once("value",(snap)=>{
+    const data = snap.val();
+    if(!data) return;
+
+    const pts = Object.values(data)
+      .filter(p => p.lat && p.lon)
+      .sort((a,b)=> new Date(a.time) - new Date(b.time));
+
+    const ll = pts.map(p => [p.lat, p.lon]);
+
+    liveLine.setLatLngs(ll);
+
+    const km = dist(ll);
+    document.getElementById("kmValue").innerText = km.toFixed(2);
+
+    const speed = computeSpeedKmh(pts);
+    document.getElementById("speedValue").innerText = speed.toFixed(2);
+  });
+}
+
+/* CURRENT (NEW REALTIME NODE) */
+currentRef.on("value",(snap)=>{
+
+  const cur = snap.val();
+  if(!cur) return;
+
+  if(cur.fc !== undefined){
+    document.getElementById("fcValue").innerText = cur.fc;
+  }
+
+  if(cur.lat && cur.lon){
+
+    const pos = [cur.lat, cur.lon];
+
+    const pts = liveLine.getLatLngs();
+    pts.push(pos);
+    liveLine.setLatLngs(pts);
+  }
+});
+
+/* INIT */
+updateLive();
+setInterval(updateLive,5000);
+
+/* ================= GPX ================= */
+let gpxLayer;
+
+document.getElementById("btnImport").onclick = () => {
+  document.getElementById("fileInput").click();
+};
+
+document.getElementById("fileInput").addEventListener("change",(e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+
+  document.getElementById("fileName").innerText = file.name;
+
+  gpxLoaded = true;
+  updateBlink();
+
+  const reader = new FileReader();
+
+  reader.onload = (ev) => {
+
+    const xml = new DOMParser().parseFromString(
+      ev.target.result,
+      "text/xml"
+    );
+
+    const pts = xml.getElementsByTagName("trkpt");
+
+    let latlngs = [];
+
+    for(let i=0;i<pts.length;i++){
+      const lat = parseFloat(pts[i].getAttribute("lat"));
+      const lon = parseFloat(pts[i].getAttribute("lon"));
+
+      if(!isNaN(lat) && !isNaN(lon)){
+        latlngs.push([lat,lon]);
+      }
+    }
+
+    if(gpxLayer){
+      map.removeLayer(gpxLayer);
+    }
+
+    if(latlngs.length === 0){
+      return;
+    }
+
+    gpxLayer = L.polyline(latlngs,{
+      color:"#007bff",
+      weight:4,
+      pane:"gpxPane"
+    }).addTo(map);
+
+    map.fitBounds(gpxLayer.getBounds(),{
+      padding:[20,20]
+    });
+
+  };
+
+  reader.readAsText(file);
+  });
+
+  if (!gpxLoaded) {
+    btnImport.classList.add("btn-blink");
+  }
+
+  </script>
+
+</body>
+</html>
