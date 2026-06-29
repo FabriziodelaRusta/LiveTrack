@@ -14,7 +14,6 @@
 body { margin:0; }
 #map { height:100vh; width:100%; }
 
-/* TOP BAR */
 #topBar{
   position:absolute;
   top:10px;
@@ -50,7 +49,6 @@ body { margin:0; }
 
 #kmValue{ color:red; }
 
-/* HUD */
 #hud{
   position:absolute;
   right:10px;
@@ -74,7 +72,6 @@ body { margin:0; }
 .hudValue{ font-family:monospace; text-align:right; }
 .hudUnit{ font-size:12px; opacity:0.85; }
 
-/* TOGGLE */
 #mapToggle{
   position:absolute;
   right:10px;
@@ -82,23 +79,18 @@ body { margin:0; }
   z-index:1000;
   width:60px;
   height:60px;
-
   background:rgba(0,0,0,0.25);
   backdrop-filter:blur(3px);
-
   border-radius:10px;
-
   display:flex;
   align-items:center;
   justify-content:center;
-
   cursor:pointer;
   box-shadow:0 2px 6px rgba(0,0,0,0.25);
 }
 
 #mapToggle img{ width:55px; height:55px; }
 
-/* SCALE */
 #scaleContainer {
   position: fixed;
   bottom: 20px;
@@ -132,17 +124,6 @@ body { margin:0; }
   padding: 2px 6px;
   border-radius: 4px;
 }
-
-.btn-blink {
-  animation: blinkBtn 1s infinite;
-}
-
-@keyframes blinkBtn {
-  0%   { opacity: 1; }
-  50%  { opacity: 0.3; }
-  100% { opacity: 1; }
-}
-
 </style>
 </head>
 
@@ -189,70 +170,35 @@ body { margin:0; }
 
 <script>
 
+/* ================= SAFE UI ================= */
+function setFileName(name){
+  const el = document.getElementById("fileName");
+  if(!el) return;
+
+  requestAnimationFrame(() => {
+    el.textContent = name || "Aucun fichier";
+  });
+}
+
 /* ================= MAP ================= */
 const map = L.map('map',{zoomControl:false})
 .setView([50.607,3.389],13);
 
 L.control.zoom({position:'bottomright'}).addTo(map);
 
-/* SCALE */
-const scaleValue = document.getElementById("scaleValue");
-
-function getNiceDistance(m) {
-  const steps = [100,200,500,1000,2000,5000,10000,20000,50000,100000];
-  for (let s of steps) if (m <= s) return s;
-  return steps.at(-1);
-}
-
-function updateScale() {
-  const c = map.getCenter();
-  const p1 = map.latLngToContainerPoint(c);
-  const p2 = L.point(p1.x + 100, p1.y);
-  const ll2 = map.containerPointToLatLng(p2);
-
-  const meters = map.distance(c, ll2);
-  if (!meters) return;
-
-  const nice = getNiceDistance(meters);
-  const px = (nice / meters) * 100;
-
-  document.getElementById("customScale").style.width = px + "px";
-  scaleValue.innerText = nice >= 1000 ? (nice/1000)+" km" : nice+" m";
-}
-
-map.on("zoom move", updateScale);
-updateScale();
-
-/* BASE LAYERS */
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
 const esri = L.tileLayer(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  { attribution: 'Tiles © Esri' }
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 );
 let current = osm.addTo(map);
 
 /* TOGGLE */
 document.getElementById("mapToggle").onclick = () => {
-
   map.removeLayer(current);
-
-  if (current === osm) {
-
-    current = esri;
-
-    document.getElementById("mapToggleIcon").src =
-      "https://fabriziodelarusta.github.io/icons/OSM.png";
-
-  } else {
-
-    current = osm;
-
-    document.getElementById("mapToggleIcon").src =
-      "https://fabriziodelarusta.github.io/icons/sat.png";
-  }
-
+  current = (current === osm) ? esri : osm;
   map.addLayer(current);
 };
+
 /* PANES */
 map.createPane("gpxPane");
 map.getPane("gpxPane").style.zIndex = 350;
@@ -260,38 +206,20 @@ map.getPane("gpxPane").style.zIndex = 350;
 map.createPane("livePane");
 map.getPane("livePane").style.zIndex = 450;
 
-/* ================= FIREBASE (UPDATED STRUCTURE) ================= */
+/* ================= FIREBASE ================= */
 firebase.initializeApp({
   databaseURL:"https://live-track-799f8-default-rtdb.europe-west1.firebasedatabase.app"
 });
 
 const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
-
-const trackerName =
-  new URLSearchParams(location.search).get("tracker")
-  || "Fabrizio";
-
+const trackerName = new URLSearchParams(location.search).get("tracker") || "Fabrizio";
 const basePath = `tracking/${today}/${trackerName}`;
 
 const ref = firebase.database().ref(basePath + "/history");
 const currentRef = firebase.database().ref(basePath + "/current");
 
-/* ================= BLINK GPX BUTTON ================= */
-let gpxLoaded = false;
-
-const btnImport = document.getElementById("btnImport");
-
-btnImport.classList.add("btn-blink");
-
-function updateBlink() {
-  if (!gpxLoaded) {
-    btnImport.classList.add("btn-blink");
-  } else {
-    btnImport.classList.remove("btn-blink");
-  }
-}
-
-updateBlink();
+/* ================= GPX STATE ================= */
+let gpxLayer;
 
 /* ================= LIVE ================= */
 let liveLine = L.polyline([], {
@@ -300,6 +228,7 @@ let liveLine = L.polyline([], {
   pane:"livePane"
 }).addTo(map);
 
+/* ================= DIST ================= */
 function dist(ll){
   let d=0;
   for(let i=1;i<ll.length;i++){
@@ -308,6 +237,7 @@ function dist(ll){
   return d/1000;
 }
 
+/* ================= SPEED ================= */
 function computeSpeedKmh(points){
   if(points.length < 2) return 0;
 
@@ -322,7 +252,7 @@ function computeSpeedKmh(points){
   return distanceKm / hours;
 }
 
-/* HISTORY (UNCHANGED LOGIC, ONLY PATH CHANGED) */
+/* ================= LIVE UPDATE ================= */
 function updateLive(){
   ref.once("value",(snap)=>{
     const data = snap.val();
@@ -336,17 +266,13 @@ function updateLive(){
 
     liveLine.setLatLngs(ll);
 
-    const km = dist(ll);
-    document.getElementById("kmValue").innerText = km.toFixed(2);
-
-    const speed = computeSpeedKmh(pts);
-    document.getElementById("speedValue").innerText = speed.toFixed(2);
+    document.getElementById("kmValue").innerText = dist(ll).toFixed(2);
+    document.getElementById("speedValue").innerText = computeSpeedKmh(pts).toFixed(2);
   });
 }
 
-/* CURRENT (NEW REALTIME NODE) */
+/* ================= CURRENT ================= */
 currentRef.on("value",(snap)=>{
-
   const cur = snap.val();
   if(!cur) return;
 
@@ -355,22 +281,39 @@ currentRef.on("value",(snap)=>{
   }
 
   if(cur.lat && cur.lon){
-
-    const pos = [cur.lat, cur.lon];
-
     const pts = liveLine.getLatLngs();
-    pts.push(pos);
+    pts.push([cur.lat, cur.lon]);
     liveLine.setLatLngs(pts);
   }
 });
 
-/* INIT */
-updateLive();
-setInterval(updateLive,5000);
-
 /* ================= GPX ================= */
-let gpxLayer;
+function renderGPX(xmlText, name, isAuto){
 
+  const xml = new DOMParser().parseFromString(xmlText,"text/xml");
+  const pts = xml.getElementsByTagName("trkpt");
+
+  let latlngs = [];
+  for(let i=0;i<pts.length;i++){
+    const lat = parseFloat(pts[i].getAttribute("lat"));
+    const lon = parseFloat(pts[i].getAttribute("lon"));
+    if(!isNaN(lat) && !isNaN(lon)) latlngs.push([lat,lon]);
+  }
+
+  if(gpxLayer) map.removeLayer(gpxLayer);
+
+  gpxLayer = L.polyline(latlngs,{
+    color:"#007bff",
+    weight:4,
+    pane:"gpxPane"
+  }).addTo(map);
+
+  map.fitBounds(gpxLayer.getBounds(),{padding:[20,20]});
+
+  setFileName(isAuto ? `AUTO ${name}` : name);
+}
+
+/* ================= MANUAL ================= */
 document.getElementById("btnImport").onclick = () => {
   document.getElementById("fileInput").click();
 };
@@ -379,61 +322,43 @@ document.getElementById("fileInput").addEventListener("change",(e)=>{
   const file = e.target.files[0];
   if(!file) return;
 
-  document.getElementById("fileName").innerText = file.name;
-
-  gpxLoaded = true;
-  updateBlink();
-
   const reader = new FileReader();
+  reader.onload = ev => renderGPX(ev.target.result, file.name, false);
+  reader.readAsText(file);
+});
 
-  reader.onload = (ev) => {
+/* ================= AUTO LOAD ================= */
+async function loadTodayGPX(){
 
-    const xml = new DOMParser().parseFromString(
-      ev.target.result,
-      "text/xml"
-    );
+  const url = `https://fabriziodelarusta.github.io/LiveTrack/gpx/${today}.gpx`;
 
-    const pts = xml.getElementsByTagName("trkpt");
+  try {
+    const r = await fetch(url, { cache: "no-store" });
 
-    let latlngs = [];
-
-    for(let i=0;i<pts.length;i++){
-      const lat = parseFloat(pts[i].getAttribute("lat"));
-      const lon = parseFloat(pts[i].getAttribute("lon"));
-
-      if(!isNaN(lat) && !isNaN(lon)){
-        latlngs.push([lat,lon]);
-      }
-    }
-
-    if(gpxLayer){
-      map.removeLayer(gpxLayer);
-    }
-
-    if(latlngs.length === 0){
+    if(!r.ok){
+      setFileName("GPX introuvable");
       return;
     }
 
-    gpxLayer = L.polyline(latlngs,{
-      color:"#007bff",
-      weight:4,
-      pane:"gpxPane"
-    }).addTo(map);
+    const txt = await r.text();
 
-    map.fitBounds(gpxLayer.getBounds(),{
-      padding:[20,20]
-    });
+    setFileName(`AUTO ${today}.gpx`);
+    renderGPX(txt, `${today}.gpx`, true);
 
-  };
-
-  reader.readAsText(file);
-  });
-
-  if (!gpxLoaded) {
-    btnImport.classList.add("btn-blink");
+  } catch(e){
+    setFileName("Erreur GPX");
   }
+}
 
-  </script>
+/* ================= INIT ================= */
+window.addEventListener("load", () => {
+  setFileName("Chargement GPX...");
+  updateLive();
+  setInterval(updateLive,5000);
+  loadTodayGPX();
+});
+
+</script>
 
 </body>
 </html>
