@@ -1,386 +1,484 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
-<meta charset="UTF-8" />
-<title>LiveTrack Fafa</title>
+    <meta charset="UTF-8">
+    <title>LiveTrack Fafa</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<style>
-body { margin:0; }
-#map { height:100vh; width:100%; }
+    <style>
+        body {
+            margin: 0;
+        }
 
-#topBar{
-  position:absolute;
-  top:10px;
-  left:10px;
-  z-index:1000;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  font-family:sans-serif;
-}
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
 
-#btnImport{
-  background:#007bff;
-  color:white;
-  border:none;
-  padding:6px 12px;
-  border-radius:6px;
-  cursor:pointer;
-}
+        #topBar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: sans-serif;
+        }
 
-#fileName{
-  font-size:13px;
-  background:rgba(255,255,255,0.7);
-  padding:6px 10px;
-  border-radius:6px;
-  max-width:250px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
+        #btnImport {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
 
-#fileInput{ display:none; }
+        #fileName {
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 6px 10px;
+            border-radius: 6px;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
 
-#kmValue{ color:red; }
+        #fileInput {
+            display: none;
+        }
 
-#hud{
-  position:absolute;
-  right:10px;
-  top:10px;
-  z-index:1000;
-  font-family:sans-serif;
-  font-size:14px;
-  font-weight:bold;
-  background:rgba(255,255,255,0.5);
-  backdrop-filter:blur(3px);
-  color:blue;
-  padding:10px 14px;
-  border-radius:10px;
-  display:grid;
-  grid-template-columns:110px 70px 60px;
-  gap:6px 10px;
-  align-items:center;
-}
+        #kmValue {
+            color: red;
+        }
 
-.hudLabel{ font-size:12px; opacity:0.85; }
-.hudValue{ font-family:monospace; text-align:right; }
-.hudUnit{ font-size:12px; opacity:0.85; }
+        #hud {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            z-index: 1000;
+            font-family: sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(3px);
+            color: blue;
+            padding: 10px 14px;
+            border-radius: 10px;
+            display: grid;
+            grid-template-columns: 110px 70px 60px;
+            gap: 6px 10px;
+            align-items: center;
+        }
 
-#mapToggle{
-  position:absolute;
-  right:10px;
-  top:145px;
-  z-index:1000;
-  width:60px;
-  height:60px;
-  background:rgba(0,0,0,0.25);
-  backdrop-filter:blur(3px);
-  border-radius:10px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  box-shadow:0 2px 6px rgba(0,0,0,0.25);
-}
+        .hudLabel {
+            font-size: 12px;
+            opacity: 0.85;
+        }
 
-#mapToggle img{ width:55px; height:55px; }
+        .hudValue {
+            font-family: monospace;
+            text-align: right;
+        }
 
-#scaleContainer {
-  position: fixed;
-  bottom: 20px;
-  left: 10px;
-  z-index: 9999;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  font-family: Arial, sans-serif;
-  font-size: 12px;
-}
+        .hudUnit {
+            font-size: 12px;
+            opacity: 0.85;
+        }
 
-#customScale {
-  width: 120px;
-  height: 8px;
-  display: flex;
-  border-radius: 4px;
-  overflow: hidden;
-  border: 1px solid rgba(0,0,0,0.6);
-  background: rgba(255,255,255,0.25);
-  margin-right: 8px;
-}
+        #mapToggle {
+            position: absolute;
+            right: 10px;
+            top: 145px;
+            z-index: 1000;
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(3px);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+        }
 
-#customScale div { flex:1; }
+        #mapToggle img {
+            width: 55px;
+            height: 55px;
+        }
 
-#customScale .black { background: rgba(0,0,0,0.85); }
-#customScale .white { background: rgba(255,255,255,0.95); }
+        #scaleContainer {
+            position: fixed;
+            bottom: 20px;
+            left: 10px;
+            z-index: 9999;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
 
-#scaleValue{
-  background: rgba(255,255,255,0.5);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-</style>
+        #customScale {
+            width: 120px;
+            height: 8px;
+            display: flex;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 0, 0, 0.6);
+            background: rgba(255, 255, 255, 0.25);
+            margin-right: 8px;
+        }
+
+        #customScale div {
+            flex: 1;
+        }
+
+        #customScale .black {
+            background: rgba(0, 0, 0, 0.85);
+        }
+
+        #customScale .white {
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        #scaleValue {
+            background: rgba(255, 255, 255, 0.5);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+    </style>
+
 </head>
 
 <body>
 
-<div id="topBar">
-  <button id="btnImport">Charger l'étape du jour</button>
-  <span id="fileName">Aucun fichier</span>
-</div>
+    <div id="topBar">
+        <button id="btnImport">Charger l'étape du jour</button>
+        <span id="fileName">Aucun fichier</span>
+    </div>
 
-<input type="file" id="fileInput" accept=".gpx"/>
+    <input type="file" id="fileInput" accept=".gpx">
 
-<div id="map"></div>
+    <div id="map"></div>
 
-<div id="hud">
-  <div class="hudLabel">Parcourus</div>
-  <div class="hudValue" id="kmValue">0.00</div>
-  <div class="hudUnit">km</div>
+    <div id="hud">
+        <div class="hudLabel">Parcourus</div>
+        <div class="hudValue" id="kmValue">0.00</div>
+        <div class="hudUnit">km</div>
 
-  <div class="hudLabel">Parcours</div>
-  <div class="hudValue" id="gpxValue">0.00</div>
-  <div class="hudUnit">km</div>
+        <div class="hudLabel">Parcours</div>
+        <div class="hudValue" id="gpxValue">0.00</div>
+        <div class="hudUnit">km</div>
 
-  <div class="hudLabel">Vitesse</div>
-  <div class="hudValue" id="speedValue">0.00</div>
-  <div class="hudUnit">km/h</div>
+        <div class="hudLabel">Vitesse</div>
+        <div class="hudValue" id="speedValue">0.00</div>
+        <div class="hudUnit">km/h</div>
 
-  <div class="hudLabel">FC</div>
-  <div class="hudValue" id="fcValue">--</div>
-  <div class="hudUnit">bpm</div>
-</div>
+        <div class="hudLabel">FC</div>
+        <div class="hudValue" id="fcValue">--</div>
+        <div class="hudUnit">bpm</div>
+    </div>
 
-<div id="mapToggle">
-  <img id="mapToggleIcon" src="https://fabriziodelarusta.github.io/icons/sat.png">
-</div>
+    <div id="mapToggle">
+        <img id="mapToggleIcon"
+            src="https://fabriziodelarusta.github.io/icons/sat.png">
+    </div>
 
-<div id="scaleContainer">
-  <div id="customScale">
-    <div class="black"></div>
-    <div class="white"></div>
-  </div>
-  <div id="scaleValue">0 m</div>
-</div>
+    <div id="scaleContainer">
+        <div id="customScale">
+            <div class="black"></div>
+            <div class="white"></div>
+        </div>
+        <div id="scaleValue">0 m</div>
+    </div>
 
-<script>
+    <script>
 
-/* ================= SAFE UI ================= */
-function setFileName(name){
-  const el = document.getElementById("fileName");
-  if(!el) return;
+        /* ================= SAFE UI ================= */
 
-  requestAnimationFrame(() => {
-    el.textContent = name || "Aucun fichier";
-  });
-}
+        function setFileName(name) {
+            const el = document.getElementById("fileName");
+            if (!el) return;
 
-/* ================= MAP ================= */
-const map = L.map('map',{zoomControl:false})
-.setView([50.607,3.389],13);
+            requestAnimationFrame(() => {
+                el.textContent = name || "Aucun fichier";
+            });
+        }
 
-L.control.zoom({position:'bottomright'}).addTo(map);
+        /* ================= MAP ================= */
 
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
-const esri = L.tileLayer(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-);
-let current = osm.addTo(map);
+        const map = L.map("map", {
+            zoomControl: false
+        }).setView([50.607, 3.389], 13);
 
-const mapToggleIcon = document.getElementById("mapToggleIcon");
+        L.control.zoom({
+            position: "bottomright"
+        }).addTo(map);
+
+        const osm = L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        );
+
+        const esri = L.tileLayer(
+            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        );
+
+        let current = osm.addTo(map);
+
+        const mapToggleIcon = document.getElementById("mapToggleIcon");
 
 function updateMapToggleIcon() {
-  const isOSM = map.hasLayer(osm);
-
-  mapToggleIcon.src = isOSM
-    ? "https://fabriziodelarusta.github.io/icons/sat.png"
-    : "https://fabriziodelarusta.github.io/icons/OSM.png";
+    mapToggleIcon.src =
+        (current === osm)
+            ? "https://fabriziodelarusta.github.io/icons/sat.png"
+            : "https://fabriziodelarusta.github.io/icons/OSM.png";
 }
 
-/* TOGGLE */
 document.getElementById("mapToggle").onclick = () => {
 
-  if (map.hasLayer(osm)) {
-    map.removeLayer(osm);
-    map.addLayer(esri);
-  } else {
-    map.removeLayer(esri);
-    map.addLayer(osm);
-  }
+    map.removeLayer(current);
 
-  updateMapToggleIcon();
+    current = (current === osm) ? esri : osm;
+
+    map.addLayer(current);
+
+    updateMapToggleIcon();
 };
 
-/* PANES */
-map.createPane("gpxPane");
-map.getPane("gpxPane").style.zIndex = 350;
+        /* ================= PANES ================= */
 
-map.createPane("livePane");
-map.getPane("livePane").style.zIndex = 450;
+        map.createPane("gpxPane");
+        map.getPane("gpxPane").style.zIndex = 350;
 
-/* ================= FIREBASE ================= */
-firebase.initializeApp({
-  databaseURL:"https://live-track-799f8-default-rtdb.europe-west1.firebasedatabase.app"
-});
+        map.createPane("livePane");
+        map.getPane("livePane").style.zIndex = 450;
 
-const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
-const trackerName = new URLSearchParams(location.search).get("tracker") || "Fabrizio";
-const basePath = `tracking/${today}/${trackerName}`;
+        /* ================= FIREBASE ================= */
 
-const ref = firebase.database().ref(basePath + "/history");
-const currentRef = firebase.database().ref(basePath + "/current");
+        firebase.initializeApp({
+            databaseURL: "https://live-track-799f8-default-rtdb.europe-west1.firebasedatabase.app"
+        });
 
-/* ================= GPX STATE ================= */
-let gpxLayer;
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
 
-/* ================= LIVE ================= */
-let liveLine = L.polyline([], {
-  color:"red",
-  weight:4,
-  pane:"livePane"
-}).addTo(map);
+        const trackerName =
+            new URLSearchParams(location.search).get("tracker") || "Fabrizio";
 
-/* ================= DIST ================= */
-function dist(ll){
-  let d=0;
-  for(let i=1;i<ll.length;i++){
-    d += map.distance(ll[i-1], ll[i]);
-  }
-  return d/1000;
-}
+        const basePath = `tracking/${today}/${trackerName}`;
 
-/* ================= SPEED ================= */
-function computeSpeedKmh(points){
-  if(points.length < 2) return 0;
+        const ref = firebase.database().ref(basePath + "/history");
+        const currentRef = firebase.database().ref(basePath + "/current");
 
-  const first = new Date(points[0].time);
-  const last = new Date(points[points.length - 1].time);
+        /* ================= GPX STATE ================= */
 
-  const hours = (last - first) / 3600000;
-  if(hours <= 0) return 0;
+        let gpxLayer;
 
-  const distanceKm = dist(points.map(p => [p.lat, p.lon]));
+        /* ================= LIVE ================= */
 
-  return distanceKm / hours;
-}
+        let liveLine = L.polyline([], {
+            color: "red",
+            weight: 4,
+            pane: "livePane"
+        }).addTo(map);
 
-/* ================= LIVE UPDATE ================= */
-function updateLive(){
-  ref.once("value",(snap)=>{
-    const data = snap.val();
-    if(!data) return;
+        /* ================= DIST ================= */
 
-    const pts = Object.values(data)
-      .filter(p => p.lat && p.lon)
-      .sort((a,b)=> new Date(a.time) - new Date(b.time));
+        function dist(ll) {
+            let d = 0;
 
-    const ll = pts.map(p => [p.lat, p.lon]);
+            for (let i = 1; i < ll.length; i++) {
+                d += map.distance(ll[i - 1], ll[i]);
+            }
 
-    liveLine.setLatLngs(ll);
+            return d / 1000;
+        }
 
-    document.getElementById("kmValue").innerText = dist(ll).toFixed(2);
-    document.getElementById("speedValue").innerText = computeSpeedKmh(pts).toFixed(2);
-  });
-}
+        /* ================= SPEED ================= */
 
-/* ================= CURRENT ================= */
-currentRef.on("value",(snap)=>{
-  const cur = snap.val();
-  if(!cur) return;
+        function computeSpeedKmh(points) {
 
-  if(cur.fc !== undefined){
-    document.getElementById("fcValue").innerText = cur.fc;
-  }
+            if (points.length < 2) return 0;
 
-  if(cur.lat && cur.lon){
-    const pts = liveLine.getLatLngs();
-    pts.push([cur.lat, cur.lon]);
-    liveLine.setLatLngs(pts);
-  }
-});
+            const first = new Date(points[0].time);
+            const last = new Date(points[points.length - 1].time);
 
-/* ================= GPX ================= */
-function renderGPX(xmlText, name, isAuto){
+            const hours = (last - first) / 3600000;
 
-  const xml = new DOMParser().parseFromString(xmlText,"text/xml");
-  const pts = xml.getElementsByTagName("trkpt");
+            if (hours <= 0) return 0;
 
-  let latlngs = [];
-  for(let i=0;i<pts.length;i++){
-    const lat = parseFloat(pts[i].getAttribute("lat"));
-    const lon = parseFloat(pts[i].getAttribute("lon"));
-    if(!isNaN(lat) && !isNaN(lon)) latlngs.push([lat,lon]);
-  }
+            const distanceKm = dist(points.map(p => [p.lat, p.lon]));
 
-  if(gpxLayer) map.removeLayer(gpxLayer);
+            return distanceKm / hours;
+        }
 
-  gpxLayer = L.polyline(latlngs,{
-    color:"#007bff",
-    weight:4,
-    pane:"gpxPane"
-  }).addTo(map);
+        /* ================= LIVE UPDATE ================= */
 
-  map.fitBounds(gpxLayer.getBounds(),{padding:[20,20]});
+        function updateLive() {
 
-  setFileName(isAuto ? `AUTO ${name}` : name);
-}
+            ref.once("value", snap => {
 
-/* ================= MANUAL ================= */
-document.getElementById("btnImport").onclick = () => {
-  document.getElementById("fileInput").click();
-};
+                const data = snap.val();
 
-document.getElementById("fileInput").addEventListener("change",(e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
+                if (!data) return;
 
-  const reader = new FileReader();
-  reader.onload = ev => renderGPX(ev.target.result, file.name, false);
-  reader.readAsText(file);
-});
+                const pts = Object.values(data)
+                    .filter(p => p.lat && p.lon)
+                    .sort((a, b) => new Date(a.time) - new Date(b.time));
 
-/* ================= AUTO LOAD ================= */
-async function loadTodayGPX(){
+                const ll = pts.map(p => [p.lat, p.lon]);
 
-  const url = `https://fabriziodelarusta.github.io/LiveTrack/gpx/${today}.gpx`;
+                liveLine.setLatLngs(ll);
 
-  try {
-    const r = await fetch(url, { cache: "no-store" });
+                document.getElementById("kmValue").innerText = dist(ll).toFixed(2);
+                document.getElementById("speedValue").innerText =
+                    computeSpeedKmh(pts).toFixed(2);
 
-    if(!r.ok){
-      setFileName("GPX introuvable");
-      return;
-    }
+            });
 
-    const txt = await r.text();
+        }
 
-    setFileName(`AUTO ${today}.gpx`);
-    renderGPX(txt, `${today}.gpx`, true);
+        /* ================= CURRENT ================= */
 
-  } catch(e){
-    setFileName("Erreur GPX");
-  }
-}
+        currentRef.on("value", snap => {
 
-/* ================= INIT ================= */
-window.addEventListener("load", () => {
-//  mapToggleIcon = document.getElementById("mapToggleIcon");
-  if (!map.hasLayer(osm) && !map.hasLayer(esri)) {
-  osm.addTo(map);
-}
-  updateMapToggleIcon();
-  setFileName("Chargement GPX...");
-  updateLive();
-  setInterval(updateLive,5000);
-  loadTodayGPX();
-});
+            const cur = snap.val();
 
-</script>
+            if (!cur) return;
+
+            if (cur.fc !== undefined) {
+                document.getElementById("fcValue").innerText = cur.fc;
+            }
+
+            if (cur.lat && cur.lon) {
+
+                const pts = liveLine.getLatLngs();
+
+                pts.push([cur.lat, cur.lon]);
+
+                liveLine.setLatLngs(pts);
+            }
+
+        });
+
+        /* ================= GPX ================= */
+
+        function renderGPX(xmlText, name, isAuto) {
+
+            const xml = new DOMParser().parseFromString(xmlText, "text/xml");
+
+            const pts = xml.getElementsByTagName("trkpt");
+
+            let latlngs = [];
+
+            for (let i = 0; i < pts.length; i++) {
+
+                const lat = parseFloat(pts[i].getAttribute("lat"));
+                const lon = parseFloat(pts[i].getAttribute("lon"));
+
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    latlngs.push([lat, lon]);
+                }
+
+            }
+
+            if (gpxLayer) {
+                map.removeLayer(gpxLayer);
+            }
+
+            gpxLayer = L.polyline(latlngs, {
+                color: "#007bff",
+                weight: 4,
+                pane: "gpxPane"
+            }).addTo(map);
+
+            map.fitBounds(gpxLayer.getBounds(), {
+                padding: [20, 20]
+            });
+
+            setFileName(isAuto ? `AUTO ${name}` : name);
+
+        }
+
+        /* ================= MANUAL ================= */
+
+        document.getElementById("btnImport").onclick = () => {
+            document.getElementById("fileInput").click();
+        };
+
+        document.getElementById("fileInput").addEventListener("change", e => {
+
+            const file = e.target.files[0];
+
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            reader.onload = ev => renderGPX(ev.target.result, file.name, false);
+
+            reader.readAsText(file);
+
+        });
+
+        /* ================= AUTO LOAD ================= */
+
+        async function loadTodayGPX() {
+
+            const url =
+                `https://fabriziodelarusta.github.io/LiveTrack/gpx/${today}.gpx`;
+
+            try {
+
+                const r = await fetch(url, {
+                    cache: "no-store"
+                });
+
+                if (!r.ok) {
+                    setFileName("GPX introuvable");
+                    return;
+                }
+
+                const txt = await r.text();
+
+                setFileName(`AUTO ${today}.gpx`);
+
+                renderGPX(txt, `${today}.gpx`, true);
+
+            } catch (e) {
+
+                setFileName("Erreur GPX");
+
+            }
+
+        }
+
+        /* ================= INIT ================= */
+
+        window.addEventListener("load", () => {
+
+            updateMapToggleIcon();
+
+            setFileName("Chargement GPX...");
+
+            updateLive();
+
+            setInterval(updateLive, 5000);
+
+            loadTodayGPX();
+
+        });
+
+    </script>
 
 </body>
+
 </html>
