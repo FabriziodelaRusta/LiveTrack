@@ -192,11 +192,28 @@ const esri = L.tileLayer(
 );
 let current = osm.addTo(map);
 
+const mapToggleIcon = document.getElementById("mapToggleIcon");
+
+function updateMapToggleIcon() {
+  const isOSM = map.hasLayer(osm);
+
+  mapToggleIcon.src = isOSM
+    ? "https://fabriziodelarusta.github.io/icons/sat.png"
+    : "https://fabriziodelarusta.github.io/icons/OSM.png";
+}
+
 /* TOGGLE */
 document.getElementById("mapToggle").onclick = () => {
-  map.removeLayer(current);
-  current = (current === osm) ? esri : osm;
-  map.addLayer(current);
+
+  if (map.hasLayer(osm)) {
+    map.removeLayer(osm);
+    map.addLayer(esri);
+  } else {
+    map.removeLayer(esri);
+    map.addLayer(osm);
+  }
+
+  updateMapToggleIcon();
 };
 
 /* PANES */
@@ -352,6 +369,11 @@ async function loadTodayGPX(){
 
 /* ================= INIT ================= */
 window.addEventListener("load", () => {
+  mapToggleIcon = document.getElementById("mapToggleIcon");
+  if (!map.hasLayer(osm) && !map.hasLayer(esri)) {
+  osm.addTo(map);
+}
+  updateMapToggleIcon();
   setFileName("Chargement GPX...");
   updateLive();
   setInterval(updateLive,5000);
