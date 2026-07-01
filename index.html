@@ -1,489 +1,506 @@
-<!DOCTYPE html>
-<html lang="fr">
+<head> <meta charset="UTF-8"> <title>LiveTrack Fafa</title>
 
-<head>
-    <meta charset="UTF-8">
-    <title>LiveTrack Fafa</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
 
-    <style>
-        body {
-            margin: 0;
-        }
+    #map {
+        height: 100vh;
+        width: 100%;
+    }
 
-        #map {
-            height: 100vh;
-            width: 100%;
-        }
+    #footer { position: fixed; bottom:10px; left:50%; font-family: sans-serif;transform:translateX(-50%); font-size:12px; color:black; font-weight:normal; text-shadow:2px 2px 4px grey; z-index:1006; }
 
-        #footer { position: fixed; bottom:10px; left:50%; font-family: sans-serif;transform:translateX(-50%); font-size:12px; color:black; font-weight:normal; text-shadow:2px 2px 4px grey; z-index:1006; }
+    #topBar {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: sans-serif;
+    }
 
-        #topBar {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-family: sans-serif;
-        }
+    #btnImport {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
 
-        #btnImport {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
+    #fileName {
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.7);
+        padding: 6px 10px;
+        border-radius: 6px;
+        max-width: 250px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 
-        #fileName {
-            font-size: 13px;
-            background: rgba(255, 255, 255, 0.7);
-            padding: 6px 10px;
-            border-radius: 6px;
-            max-width: 250px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+    #fileInput {
+        display: none;
+    }
 
-        #fileInput {
-            display: none;
-        }
+    #kmValue {
+        color: red;
+    }
 
-        #kmValue {
-            color: red;
-        }
+    #hud {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        z-index: 1000;
+        font-family: sans-serif;
+        font-size: 14px;
+        font-weight: bold;
+        background: rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(3px);
+        color: blue;
+        padding: 10px 14px;
+        border-radius: 10px;
+        display: grid;
+        grid-template-columns: 110px 70px 60px;
+        gap: 6px 10px;
+        align-items: center;
+    }
 
-        #hud {
-            position: absolute;
-            right: 10px;
-            top: 10px;
-            z-index: 1000;
-            font-family: sans-serif;
-            font-size: 14px;
-            font-weight: bold;
-            background: rgba(255, 255, 255, 0.5);
-            backdrop-filter: blur(3px);
-            color: blue;
-            padding: 10px 14px;
-            border-radius: 10px;
-            display: grid;
-            grid-template-columns: 110px 70px 60px;
-            gap: 6px 10px;
-            align-items: center;
-        }
+    .hudLabel {
+        font-size: 12px;
+        opacity: 0.85;
+    }
 
-        .hudLabel {
-            font-size: 12px;
-            opacity: 0.85;
-        }
+    .hudValue {
+        font-family: monospace;
+        text-align: right;
+    }
 
-        .hudValue {
-            font-family: monospace;
-            text-align: right;
-        }
+    .hudUnit {
+        font-size: 12px;
+        opacity: 0.85;
+    }
 
-        .hudUnit {
-            font-size: 12px;
-            opacity: 0.85;
-        }
+    #mapToggle {
+        position: absolute;
+        right: 10px;
+        top: 145px;
+        z-index: 1000;
+        width: 60px;
+        height: 60px;
+        background: rgba(0, 0, 0, 0.25);
+        backdrop-filter: blur(3px);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    }
 
-        #mapToggle {
-            position: absolute;
-            right: 10px;
-            top: 145px;
-            z-index: 1000;
-            width: 60px;
-            height: 60px;
-            background: rgba(0, 0, 0, 0.25);
-            backdrop-filter: blur(3px);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-        }
+    #mapToggle img {
+        width: 55px;
+        height: 55px;
+    }
 
-        #mapToggle img {
-            width: 55px;
-            height: 55px;
-        }
+    #scaleContainer {
+        position: fixed;
+        bottom: 20px;
+        left: 10px;
+        z-index: 9999;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+    }
 
-        #scaleContainer {
-            position: fixed;
-            bottom: 20px;
-            left: 10px;
-            z-index: 9999;
-            pointer-events: none;
-            display: flex;
-            align-items: center;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-        }
+    #customScale {
+        width: 120px;
+        height: 8px;
+        display: flex;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 1px solid rgba(0, 0, 0, 0.6);
+        background: rgba(255, 255, 255, 0.25);
+        margin-right: 8px;
+    }
 
-        #customScale {
-            width: 120px;
-            height: 8px;
-            display: flex;
-            border-radius: 4px;
-            overflow: hidden;
-            border: 1px solid rgba(0, 0, 0, 0.6);
-            background: rgba(255, 255, 255, 0.25);
-            margin-right: 8px;
-        }
+    #customScale div {
+        flex: 1;
+    }
 
-        #customScale div {
-            flex: 1;
-        }
+    #customScale .black {
+        background: rgba(0, 0, 0, 0.85);
+    }
 
-        #customScale .black {
-            background: rgba(0, 0, 0, 0.85);
-        }
+    #customScale .white {
+        background: rgba(255, 255, 255, 0.95);
+    }
 
-        #customScale .white {
-            background: rgba(255, 255, 255, 0.95);
-        }
-
-        #scaleValue {
-            background: rgba(255, 255, 255, 0.5);
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-    </style>
+    #scaleValue {
+        background: rgba(255, 255, 255, 0.5);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+</style>
 
 </head>
 
 <body>
 
-    <div id="topBar">
-        <button id="btnImport">Charger l'étape du jour</button>
-        <span id="fileName">Aucun fichier</span>
+<div id="topBar">
+    <button id="btnImport">Charger l'étape du jour</button>
+    <span id="fileName">Aucun fichier</span>
+</div>
+
+<input type="file" id="fileInput" accept=".gpx">
+
+<div id="map"></div>
+
+<div id="hud">
+    <div class="hudLabel">Parcourus</div>
+    <div class="hudValue" id="kmValue">0.00</div>
+    <div class="hudUnit">km</div>
+
+    <div class="hudLabel">Parcours</div>
+    <div class="hudValue" id="gpxValue">0.00</div>
+    <div class="hudUnit">km</div>
+
+    <div class="hudLabel">Vitesse</div>
+    <div class="hudValue" id="speedValue">0.00</div>
+    <div class="hudUnit">km/h</div>
+
+    <div class="hudLabel">FC</div>
+    <div class="hudValue" id="fcValue">--</div>
+    <div class="hudUnit">bpm</div>
+</div>
+
+<div id="mapToggle">
+    <img id="mapToggleIcon"
+        src="https://fabriziodelarusta.github.io/icons/sat.png">
+</div>
+
+<div id="scaleContainer">
+    <div id="customScale">
+        <div class="black"></div>
+        <div class="white"></div>
     </div>
+    <div id="scaleValue">0 m</div>
+</div>
 
-    <input type="file" id="fileInput" accept=".gpx">
+<script>
 
-    <div id="map"></div>
+    /* ================= SAFE UI ================= */
 
-    <div id="hud">
-        <div class="hudLabel">Parcourus</div>
-        <div class="hudValue" id="kmValue">0.00</div>
-        <div class="hudUnit">km</div>
+    function setFileName(name) {
+        const el = document.getElementById("fileName");
+        if (!el) return;
 
-        <div class="hudLabel">Parcours</div>
-        <div class="hudValue" id="gpxValue">0.00</div>
-        <div class="hudUnit">km</div>
+        requestAnimationFrame(() => {
+            el.textContent = name || "Aucun fichier";
+        });
+    }
 
-        <div class="hudLabel">Vitesse</div>
-        <div class="hudValue" id="speedValue">0.00</div>
-        <div class="hudUnit">km/h</div>
+    /* ================= MAP ================= */
 
-        <div class="hudLabel">FC</div>
-        <div class="hudValue" id="fcValue">--</div>
-        <div class="hudUnit">bpm</div>
-    </div>
+    const map = L.map("map", {
+        zoomControl: false
+    }).setView([50.607, 3.389], 13);
 
-    <div id="mapToggle">
-        <img id="mapToggleIcon"
-            src="https://fabriziodelarusta.github.io/icons/sat.png">
-    </div>
+    L.control.zoom({
+        position: "bottomright"
+    }).addTo(map);
 
-    <div id="scaleContainer">
-        <div id="customScale">
-            <div class="black"></div>
-            <div class="white"></div>
-        </div>
-        <div id="scaleValue">0 m</div>
-    </div>
+    const osm = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    );
 
-    <script>
+    const esri = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    );
 
-        /* ================= SAFE UI ================= */
+    let current = osm.addTo(map);
 
-        function setFileName(name) {
-            const el = document.getElementById("fileName");
-            if (!el) return;
+    /* ================= SCALE FIX (AJOUT MINIMAL) ================= */
 
-            requestAnimationFrame(() => {
-                el.textContent = name || "Aucun fichier";
-            });
-        }
+    function updateScale() {
+        const a = map.containerPointToLatLng([0, 0]);
+        const b = map.containerPointToLatLng([120, 0]);
 
-        /* ================= MAP ================= */
+        const meters = map.distance(a, b);
 
-        const map = L.map("map", {
-            zoomControl: false
-        }).setView([50.607, 3.389], 13);
+        document.getElementById("scaleValue").innerText =
+            meters >= 1000
+                ? (meters / 1000).toFixed(2) + " km"
+                : Math.round(meters) + " m";
+    }
 
-        L.control.zoom({
-            position: "bottomright"
-        }).addTo(map);
+    map.on("zoom move", updateScale);
 
-        const osm = L.tileLayer(
-            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        );
+    /* ================= MAP TOGGLE ================= */
 
-        const esri = L.tileLayer(
-            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-        );
+    const mapToggleIcon = document.getElementById("mapToggleIcon");
 
-        let current = osm.addTo(map);
-
-        const mapToggleIcon = document.getElementById("mapToggleIcon");
-
-function updateMapToggleIcon() {
-    mapToggleIcon.src =
-        (current === osm)
-            ? "https://fabriziodelarusta.github.io/icons/sat.png"
-            : "https://fabriziodelarusta.github.io/icons/OSM.png";
-}
+function updateMapToggleIcon() { mapToggleIcon.src = (current === osm) ? "https://fabriziodelarusta.github.io/icons/sat.png" : "https://fabriziodelarusta.github.io/icons/OSM.png"; }
 
 document.getElementById("mapToggle").onclick = () => {
 
-    map.removeLayer(current);
 
-    current = (current === osm) ? esri : osm;
+map.removeLayer(current);
 
-    map.addLayer(current);
+current = (current === osm) ? esri : osm;
 
-    updateMapToggleIcon();
+map.addLayer(current);
+
+updateMapToggleIcon();
+
+
 };
 
-        /* ================= PANES ================= */
 
-        map.createPane("gpxPane");
-        map.getPane("gpxPane").style.zIndex = 350;
+/* ================= PANES ================= */
 
-        map.createPane("livePane");
-        map.getPane("livePane").style.zIndex = 450;
+map.createPane("gpxPane");
+map.getPane("gpxPane").style.zIndex = 350;
 
-        /* ================= FIREBASE ================= */
+map.createPane("livePane");
+map.getPane("livePane").style.zIndex = 450;
 
-        firebase.initializeApp({
-            databaseURL: "https://live-track-799f8-default-rtdb.europe-west1.firebasedatabase.app"
+/* ================= FIREBASE ================= */
+
+firebase.initializeApp({
+    databaseURL: "https://live-track-799f8-default-rtdb.europe-west1.firebasedatabase.app"
+});
+
+const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+
+const trackerName =
+    new URLSearchParams(location.search).get("tracker") || "Fabrizio";
+
+const basePath = `tracking/${today}/${trackerName}`;
+
+const ref = firebase.database().ref(basePath + "/history");
+const currentRef = firebase.database().ref(basePath + "/current");
+
+/* ================= GPX STATE ================= */
+
+let gpxLayer;
+
+/* ================= LIVE ================= */
+
+let liveLine = L.polyline([], {
+    color: "red",
+    weight: 4,
+    pane: "livePane"
+}).addTo(map);
+
+/* ================= DIST ================= */
+
+function dist(ll) {
+    let d = 0;
+
+    for (let i = 1; i < ll.length; i++) {
+        d += map.distance(ll[i - 1], ll[i]);
+    }
+
+    return d / 1000;
+}
+
+/* ================= SPEED ================= */
+
+// Nouvelle fonction pour calculer la vitesse instantanée sur une petite fenêtre temporelle
+function computeInstantSpeedKmh(points, windowSeconds = 10) {
+    if (points.length < 2) return 0;
+    // On prend les points les plus récents dans la fenêtre temporelle
+    const now = new Date(points[points.length - 1].time).getTime();
+    const windowStart = now - windowSeconds * 1000;
+    // Filtrer les points dans la fenêtre
+    const recentPoints = points.filter(p => new Date(p.time).getTime() >= windowStart);
+    if (recentPoints.length < 2) return 0;
+    // Calculer la distance entre le premier et le dernier point
+    const latlngs = recentPoints.map(p => [p.lat, p.lon]);
+    const distanceKm = dist(latlngs);
+    const firstTime = new Date(recentPoints[0].time).getTime();
+    const lastTime = new Date(recentPoints[recentPoints.length - 1].time).getTime();
+    const hours = (lastTime - firstTime) / 3600000;
+    if (hours <= 0) return 0;
+    const speed = distanceKm / hours;
+    return speed < 2 ? 0 : speed;
+}
+
+
+/* ================= LIVE UPDATE ================= */
+
+function updateLive() {
+
+    ref.once("value", snap => {
+
+        const data = snap.val();
+
+        if (!data) return;
+
+        const pts = Object.values(data)
+            .filter(p => p.lat && p.lon)
+            .sort((a, b) => new Date(a.time) - new Date(b.time));
+
+        const ll = pts.map(p => [p.lat, p.lon]);
+
+        liveLine.setLatLngs(ll);
+
+        document.getElementById("kmValue").innerText = dist(ll).toFixed(2);
+        document.getElementById("speedValue").innerText =
+            computeInstantSpeedKmh(pts).toFixed(2);
+
+    });
+
+}
+
+/* ================= CURRENT ================= */
+
+currentRef.on("value", snap => {
+
+    const cur = snap.val();
+
+    if (!cur) return;
+
+    if (cur.fc !== undefined) {
+        document.getElementById("fcValue").innerText = cur.fc;
+    }
+
+    if (cur.lat && cur.lon) {
+
+        const pts = liveLine.getLatLngs();
+
+        pts.push([cur.lat, cur.lon]);
+
+        liveLine.setLatLngs(pts);
+    }
+
+});
+
+/* ================= GPX ================= */
+
+function renderGPX(xmlText, name, isAuto) {
+
+    const xml = new DOMParser().parseFromString(xmlText, "text/xml");
+
+    const pts = xml.getElementsByTagName("trkpt");
+
+    let latlngs = [];
+
+    for (let i = 0; i < pts.length; i++) {
+
+        const lat = parseFloat(pts[i].getAttribute("lat"));
+        const lon = parseFloat(pts[i].getAttribute("lon"));
+
+        if (!isNaN(lat) && !isNaN(lon)) {
+            latlngs.push([lat, lon]);
+        }
+
+    }
+
+    if (gpxLayer) {
+        map.removeLayer(gpxLayer);
+    }
+
+    gpxLayer = L.polyline(latlngs, {
+        color: "#007bff",
+        weight: 4,
+        pane: "gpxPane"
+    }).addTo(map);
+
+    map.fitBounds(gpxLayer.getBounds(), {
+        padding: [20, 20]
+    });
+
+    setFileName(isAuto ? `AUTO ${name}` : name);
+
+}
+
+/* ================= MANUAL ================= */
+
+document.getElementById("btnImport").onclick = () => {
+    document.getElementById("fileInput").click();
+};
+
+document.getElementById("fileInput").addEventListener("change", e => {
+
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = ev => renderGPX(ev.target.result, file.name, false);
+
+    reader.readAsText(file);
+
+});
+
+/* ================= AUTO LOAD ================= */
+
+async function loadTodayGPX() {
+
+    const url =
+        `https://fabriziodelarusta.github.io/LiveTrack/gpx/${today}.gpx`;
+
+    try {
+
+        const r = await fetch(url, {
+            cache: "no-store"
         });
 
-        const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-
-        const trackerName =
-            new URLSearchParams(location.search).get("tracker") || "Fabrizio";
-
-        const basePath = `tracking/${today}/${trackerName}`;
-
-        const ref = firebase.database().ref(basePath + "/history");
-        const currentRef = firebase.database().ref(basePath + "/current");
-
-        /* ================= GPX STATE ================= */
-
-        let gpxLayer;
-
-        /* ================= LIVE ================= */
-
-        let liveLine = L.polyline([], {
-            color: "red",
-            weight: 4,
-            pane: "livePane"
-        }).addTo(map);
-
-        /* ================= DIST ================= */
-
-        function dist(ll) {
-            let d = 0;
-
-            for (let i = 1; i < ll.length; i++) {
-                d += map.distance(ll[i - 1], ll[i]);
-            }
-
-            return d / 1000;
+        if (!r.ok) {
+            setFileName("GPX introuvable");
+            return;
         }
 
-        /* ================= SPEED ================= */
+        const txt = await r.text();
 
-        function computeSpeedKmh(points) {
+        setFileName(`AUTO ${today}.gpx`);
 
-            if (points.length < 2) return 0;
+        renderGPX(txt, `${today}.gpx`, true);
 
-            const first = new Date(points[0].time);
-            const last = new Date(points[points.length - 1].time);
+    } catch (e) {
 
-            const hours = (last - first) / 3600000;
+        setFileName("Erreur GPX");
 
-            if (hours <= 0) return 0;
+    }
 
-            const distanceKm = dist(points.map(p => [p.lat, p.lon]));
+}
 
-            return distanceKm / hours;
-        }
+/* ================= INIT ================= */
 
-        /* ================= LIVE UPDATE ================= */
+window.addEventListener("load", () => {
 
-        function updateLive() {
+    updateMapToggleIcon();
 
-            ref.once("value", snap => {
+    setFileName("Chargement GPX...");
 
-                const data = snap.val();
+    updateLive();
 
-                if (!data) return;
+    setInterval(updateLive, 5000);
 
-                const pts = Object.values(data)
-                    .filter(p => p.lat && p.lon)
-                    .sort((a, b) => new Date(a.time) - new Date(b.time));
+    loadTodayGPX();
 
-                const ll = pts.map(p => [p.lat, p.lon]);
+    updateScale(); // <-- IMPORTANT
+});
 
-                liveLine.setLatLngs(ll);
+</script>
 
-                document.getElementById("kmValue").innerText = dist(ll).toFixed(2);
-                document.getElementById("speedValue").innerText =
-                    computeSpeedKmh(pts).toFixed(2);
+<div id="footer"> v<span id="version">1.1</span> — Fabrizio de la Rusta </div>
 
-            });
-
-        }
-
-        /* ================= CURRENT ================= */
-
-        currentRef.on("value", snap => {
-
-            const cur = snap.val();
-
-            if (!cur) return;
-
-            if (cur.fc !== undefined) {
-                document.getElementById("fcValue").innerText = cur.fc;
-            }
-
-            if (cur.lat && cur.lon) {
-
-                const pts = liveLine.getLatLngs();
-
-                pts.push([cur.lat, cur.lon]);
-
-                liveLine.setLatLngs(pts);
-            }
-
-        });
-
-        /* ================= GPX ================= */
-
-        function renderGPX(xmlText, name, isAuto) {
-
-            const xml = new DOMParser().parseFromString(xmlText, "text/xml");
-
-            const pts = xml.getElementsByTagName("trkpt");
-
-            let latlngs = [];
-
-            for (let i = 0; i < pts.length; i++) {
-
-                const lat = parseFloat(pts[i].getAttribute("lat"));
-                const lon = parseFloat(pts[i].getAttribute("lon"));
-
-                if (!isNaN(lat) && !isNaN(lon)) {
-                    latlngs.push([lat, lon]);
-                }
-
-            }
-
-            if (gpxLayer) {
-                map.removeLayer(gpxLayer);
-            }
-
-            gpxLayer = L.polyline(latlngs, {
-                color: "#007bff",
-                weight: 4,
-                pane: "gpxPane"
-            }).addTo(map);
-
-            map.fitBounds(gpxLayer.getBounds(), {
-                padding: [20, 20]
-            });
-
-            setFileName(isAuto ? `AUTO ${name}` : name);
-
-        }
-
-        /* ================= MANUAL ================= */
-
-        document.getElementById("btnImport").onclick = () => {
-            document.getElementById("fileInput").click();
-        };
-
-        document.getElementById("fileInput").addEventListener("change", e => {
-
-            const file = e.target.files[0];
-
-            if (!file) return;
-
-            const reader = new FileReader();
-
-            reader.onload = ev => renderGPX(ev.target.result, file.name, false);
-
-            reader.readAsText(file);
-
-        });
-
-        /* ================= AUTO LOAD ================= */
-
-        async function loadTodayGPX() {
-
-            const url =
-                `https://fabriziodelarusta.github.io/LiveTrack/gpx/${today}.gpx`;
-
-            try {
-
-                const r = await fetch(url, {
-                    cache: "no-store"
-                });
-
-                if (!r.ok) {
-                    setFileName("GPX introuvable");
-                    return;
-                }
-
-                const txt = await r.text();
-
-                setFileName(`AUTO ${today}.gpx`);
-
-                renderGPX(txt, `${today}.gpx`, true);
-
-            } catch (e) {
-
-                setFileName("Erreur GPX");
-
-            }
-
-        }
-
-        /* ================= INIT ================= */
-
-        window.addEventListener("load", () => {
-
-            updateMapToggleIcon();
-
-            setFileName("Chargement GPX...");
-
-            updateLive();
-
-            setInterval(updateLive, 5000);
-
-            loadTodayGPX();
-
-        });
-
-    </script>
-
-    <div id="footer">
-         v<span id="version">1.1</span> — Fabrizio de la Rusta
-    </div>
 
 </body>
 
